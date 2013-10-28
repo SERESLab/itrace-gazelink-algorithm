@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<itrace-records>
+<environment>
+<screen-size width="1920" height="1080"/>
+<line-height>22</line-height>
+<font-height>14</font-height>
+</environment>
+<gazes>
+<response file="A.java" type="text" x="463" y="291" left-validation="1.0" right-validation="1.0" timestamp="1371245700900" line="38" col="3"/>
+<response file="A.java" type="text" x="472" y="262" left-validation="1.0" right-validation="1.0" timestamp="1371245700917" line="37" col="4"/>
+<response file="B.java" type="text" x="476" y="449" left-validation="1.0" right-validation="1.0" timestamp="1371245715904" line="88" col="3"/>
+<response file="B.java" type="text" x="488" y="439" left-validation="1.0" right-validation="1.0" timestamp="1371245715921" line="88" col="4"/>
+</gazes>
+</itrace-records>
+
