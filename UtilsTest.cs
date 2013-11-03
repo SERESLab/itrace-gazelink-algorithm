@@ -20,14 +20,9 @@ public class UtilsTest
       Console.WriteLine("");
     }
 
-    if (args.Length == 0)
-    {
-      Console.WriteLine("Please provide a src2srcml binary path to continue.");
-      return;
-    }
-
+    Config config = new Config();
     SourceCodeEntitiesFileCollection collection = SrcMLCodeReader.run(
-      args[0], "data/java/");
+      config.src2srcml_path, "data/java/");
     foreach (SourceCodeEntitiesFile file in collection)
     {
       Console.WriteLine(file.FileName  + ":");
