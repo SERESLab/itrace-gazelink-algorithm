@@ -1,4 +1,4 @@
-all: Example.exe Utils.dll UtilsTest.exe
+all: Example.exe Utils.dll UtilsTest.exe GenGazeToSourceDump.exe
 
 Example.exe:
 	gmcs Example.cs -out:build/Example.exe
@@ -6,5 +6,8 @@ Example.exe:
 Utils.dll:
 	gmcs utils/*.cs -target:library -out:build/Utils.dll
 
-UtilsTest.exe:
+UtilsTest.exe: Utils.dll
 	gmcs UtilsTest.cs -r:build/Utils.dll -out:build/UtilsTest.exe
+
+GenGazeToSourceDump.exe: Utils.dll
+	gmcs GenGazeToSourceDump.cs -r:build/Utils.dll -out:build/GenGazeToSourceDump.exe
