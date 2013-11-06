@@ -214,8 +214,11 @@ namespace NIER2014.Utils
     private static string loadSourceInfo(FileInfo file_info,
                                          string src2srcml_path)
     {
-      string output_filename = System.IO.Path.GetTempPath() + file_info.Name +
-                               ".xml";
+      string output_filename = file_info.FullName + ".xml";
+
+      //If srcML already exists, use that.
+      if (File.Exists(output_filename))
+        return File.ReadAllText(output_filename);
 
       //Execute src2srcml.
       string arg = string.Format(SRCML_ARG_FORMAT, file_info.FullName,
@@ -235,9 +238,6 @@ namespace NIER2014.Utils
 
       //Load srcml data to string.
       string result = File.ReadAllText(output_filename);
-
-      //Delete srcml file.
-      File.Delete(output_filename);
 
       return result;
     }
