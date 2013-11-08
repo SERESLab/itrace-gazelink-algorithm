@@ -25,7 +25,94 @@ namespace NIER2014.Utils
     public int ColumnEnd { get; set; }
     public SourceCodeEntityType Type { get; set; }
     public string Name { get; set; }
+    public static bool operator ==(SourceCodeEntity a,
+		                               SourceCodeEntity b)
+		{
+			// If both are null or both are same instance, return true.
+			if (System.Object.ReferenceEquals(a, b))
+			{
+				return true;
+			}
+
+            // Logical equivalence
+			// If one is null, but not both, return false.
+			if (((object)a == null) || ((object)b == null))
+			{
+				return false;
+			}
+
+			// Return true if the fields match.
+			return (a.Type == b.Type) &&
+				(a.Name == b.Name);
+		}
+		public static bool operator !=(SourceCodeEntity a,
+		                               SourceCodeEntity b)
+		{
+			return !(a == b);
+		}
+		public override bool Equals(Object o)
+		{
+			SourceCodeEntity e = o
+				as SourceCodeEntity; 
+			if (e == null)
+				return false;
+			else 
+				// Compare fieldwise.
+				return (Type == e.Type) &&
+					(Name == e.Name);
+		}
+		public override int GetHashCode()
+		{
+			// Use a concatenation of the fields as a hash code.
+			// Assuming no fields can contain null bytes, these
+			// seperators will prevent an edge case in which two
+			// sets of symbols have the same concatenation, e.g.
+			// "hello" + "world" and "hell" + "oworld".
+			return (Name + "\x00" + (char)Type).GetHashCode();
+		}
   }
+
+	public class EntityLink
+	{
+		public SourceCodeEntity left { get; set; }
+		public SourceCodeEntity right { get; set; }
+		public static bool operator ==(EntityLink a,
+		                               EntityLink b)
+		{
+			// If both are null, or both are same instance, return true.
+			if (System.Object.ReferenceEquals(a, b))
+			{
+				return true;
+			}
+
+			// If one is null, but not both, return false.
+			if (((object)a == null) || ((object)b == null))
+			{
+				return false;
+			}
+
+			// Return true if the fields match:
+			return (a.left == b.left) && (a.right == b.right);
+		}
+		public static bool operator !=(EntityLink a,
+		                               EntityLink b)
+		{
+			return !(a == b);
+		}
+		public override bool Equals(Object o)
+		{
+			EntityLink e = o as EntityLink; 
+			if (e == null)
+				return false;
+			else 
+				return (left == e.left) && (right == e.right);
+		}
+		public override int GetHashCode()
+		{
+			return (left.Name + "\x00" + (char)left.Type + "\x00\x00" +
+			        right.Name + "\x00" + (char)right.Type).GetHashCode();
+		}
+	}
 
   public class SourceCodeEntitiesFile : List<SourceCodeEntity>
   {

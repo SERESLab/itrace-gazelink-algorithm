@@ -11,3 +11,5 @@ UtilsTest.exe: Utils.dll
 
 GenGazeToSourceDump.exe: Utils.dll
 	gmcs GenGazeToSourceDump.cs -r:build/Utils.dll -out:build/GenGazeToSourceDump.exe
+SimpleGraph.exe: SimpleGraph.cs
+	mcs SimpleGraph.cs utils/Config.cs utils/GazeReader.cs utils/SrcMLCodeReader.cs
