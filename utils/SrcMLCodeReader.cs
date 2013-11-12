@@ -19,6 +19,8 @@ namespace NIER2014.Utils
 
   public class SourceCodeEntity
   {
+    public SourceCodeEntitiesFile parent_file { get; set; }
+
     public int LineStart { get; set; }
     public int LineEnd { get; set; }
     public int ColumnStart { get; set; }
@@ -212,6 +214,8 @@ namespace NIER2014.Utils
         sce.ColumnEnd = position.col_end;
         sce.Type = type;
         sce.Name = name;
+
+        sce.parent_file = scef;
         scef.Add(sce);
       }
     }

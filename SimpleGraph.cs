@@ -66,7 +66,7 @@ public class SimpleGraph
 					g.Key.left.LineStart.ToString () +
 						"C" + g.Key.left.ColumnStart.ToString ();
 			} else {
-				lname = g.Key.left.Name;
+				lname = g.Key.left.Name + " (" + g.Key.left.parent_file.FileName + ")";
 			}
 			if (g.Key.right.Type ==
 			    SourceCodeEntityType.COMMENT) {
@@ -74,7 +74,7 @@ public class SimpleGraph
 					g.Key.right.LineStart.ToString () +
 						"C" + g.Key.right.ColumnStart.ToString ();
 			} else {
-				rname = g.Key.right.Name;
+				rname = g.Key.right.Name + " (" + g.Key.right.parent_file.FileName + ")";
 			}
 			str.WriteLine ("\"" + lname.Replace ("\"", "\'\'") + "\" -> \"" +
 			                rname.Replace ("\"", "\'\'") + "\" [weight=" +
