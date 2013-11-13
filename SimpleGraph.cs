@@ -11,36 +11,31 @@ public class SimpleGraph
 //   for rendering graphs to human-viewable form. Only minimal
 //   processing is implemented, i.e. scale timestamp-based weights
 //   into [0.0, 1.0] and remove links lighter than 1%.
+// 2013-11-13 TRS: Adjusted processing so that new links are initialized
+//   to t^2 and repeat links get t added. Postprocessing now scales and
+//   applies a highpass filter at 90%. Also, filenames are now inlcuded
+//   in the nodes; thanks Braden.
 //   TODO:
 //     - Make the DOT files prettier, e.g. different node styles for
 //       different types.
-//     - Add qualified names to the DOT files. Classes are currently
-//       excluded to prevent them from masking the finer structures.
-//       The only implementations I can think of right now involve
-//       nontrivial changes to the src2srcml parsing or kluge repeated
-//       lookups with flagrant layering violations.
 //     - Improve/tune postprocessing.
 //     - Add functional-style utilities (I love lisps).
-
 	public static void normalize_graph(Dictionary<EntityLink,double> graph)
 	{
 		// Scales the edge weights so that the lightest is about 0.0 and the
 		// heaviest is about 1.0, to within floating point errors. 
-
 		List<EntityLink> graph_keys = new List<EntityLink> (graph.Keys);
 		// remove a constant offset from each edge
 		double lightest_link = graph.Min(g => g.Value);
 		for (int i = 0; i < graph_keys.Count; i++) {
 			graph [graph_keys [i]] -= lightest_link;
 		}
-
 		// now scale everyone
 		double heaviest_link = graph.Max(g => g.Value);
 		for (int i = 0; i < graph_keys.Count; i++) {
 			graph [graph_keys [i]] /= heaviest_link;
 		}
 	}
-
 	public static void filter_highpass(Dictionary<EntityLink,double> graph,
 	                                   double cutoff)
 	{
@@ -51,7 +46,6 @@ public class SimpleGraph
 			}
 		}
 	}
-
 	public static void dump_DOT(System.IO.TextWriter str,
 	                            Dictionary<EntityLink,double> graph) {
 		// This function has some ugliness, but IO/format
@@ -82,12 +76,10 @@ public class SimpleGraph
 		}
 		str.WriteLine ("}");
 	}
-
 	public static int Main (string[] args)
 	{
 		List<SourceCodeEntityType> EXCLUDED_TYPES =
 			new List<SourceCodeEntityType> ();
-
 		// Including classes tends to blow everyone else
 		// away since classes contain everything but get
 		// parsed in the same way; including comments and,
@@ -95,9 +87,8 @@ public class SimpleGraph
 		// graph noisy.
   		EXCLUDED_TYPES.Add (SourceCodeEntityType.COMMENT);
 		EXCLUDED_TYPES.Add (SourceCodeEntityType.CLASS);
-		EXCLUDED_TYPES.Add (SourceCodeEntityType.ATTRIBUTE);
+//		EXCLUDED_TYPES.Add (SourceCodeEntityType.ATTRIBUTE);
 //		EXCLUDED_TYPES.Add (SourceCodeEntityType.METHOD);
-
 		// I don't recommend making a composite of several sessions.
 		// The differing timestamps would throw off the weights such
 		// that earlier sessions count less. If composites are a
@@ -114,7 +105,6 @@ public class SimpleGraph
 			                   "data over the source\n\t  files in <source-directory>.");
 			return 1;
 		}
-
 		Config config = new Config ();
 		SourceCodeEntitiesFileCollection collection = SrcMLCodeReader.run (
 			                                              config.src2srcml_path, args [1]);
@@ -159,17 +149,15 @@ public class SimpleGraph
 				link.left = previous;
 				link.right = current;
 				if (gaze_links.ContainsKey (link)) {
-					gaze_links [link] += (double)gaze_data.timestamp;
+					gaze_links [link] += Math.Pow (gaze_data.timestamp, 1.0);
 				} else {
-					gaze_links [link] = (double)gaze_data.timestamp;
+					gaze_links [link] = Math.Pow (gaze_data.timestamp, 2.0);
 				}
 			}
 			previous = current;
 		}
-
 		normalize_graph (gaze_links);
-		filter_highpass (gaze_links, 0.01);
-
+		filter_highpass (gaze_links, 0.9);
 		// now write the graph to a DOT file (or stdout)
 		// to be rendered using GraphViz
 		if (args [0] == "-") {
