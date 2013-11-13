@@ -1,4 +1,4 @@
-all: Example.exe Utils.dll UtilsTest.exe GenGazeToSourceDump.exe SimpleGraph.exe
+all: Example.exe Utils.dll UtilsTest.exe GenGazeToSourceDump.exe SimpleGraph.exe SourceFileGazePath.exe
 
 Example.exe:
 	gmcs Example.cs -out:build/Example.exe
@@ -14,3 +14,6 @@ GenGazeToSourceDump.exe: Utils.dll
 
 SimpleGraph.exe: SimpleGraph.cs
 	mcs SimpleGraph.cs -r:build/Utils.dll -out:build/SimpleGraph.exe
+
+SourceFileGazePath.exe: Utils.dll
+	gmcs SourceFileGazePath.cs -r:build/Utils.dll -out:build/SourceFileGazePath.exe
