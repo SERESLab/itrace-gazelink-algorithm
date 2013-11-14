@@ -36,8 +36,8 @@ public class SimpleGraph
 			graph [graph_keys [i]] /= heaviest_link;
 		}
 	}
-	public static void filter_highpass(Dictionary<EntityLink,double> graph,
-	                                   double cutoff)
+	public static void edge_filter_highpass(Dictionary<EntityLink,double> graph,
+	                                        double cutoff)
 	{
 		List<EntityLink> graph_keys = new List<EntityLink> (graph.Keys);
 		for (int i = 0; i < graph_keys.Count; i++) {
@@ -82,6 +82,15 @@ public class SimpleGraph
 			result[key] /= max_in_result;
 
 		return result;
+	}
+
+	//TODO: Test and use.
+	public static void sce_filter_highpass(
+		Dictionary<SourceCodeEntity, double> entity_scores, double cutoff)
+	{
+		foreach (var key in entity_scores.Keys)
+			if (entity_scores[key] < cutoff)
+				entity_scores.Remove(key);
 	}
 
 	public static void dump_DOT(System.IO.TextWriter str,
@@ -195,7 +204,7 @@ public class SimpleGraph
 			previous = current;
 		}
 		normalize_graph (gaze_links);
-		filter_highpass (gaze_links, 0.9);
+		edge_filter_highpass (gaze_links, 0.9);
 		// now write the graph to a DOT file (or stdout)
 		// to be rendered using GraphViz
 		if (args [0] == "-") {
