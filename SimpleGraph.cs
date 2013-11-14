@@ -51,7 +51,6 @@ public class SimpleGraph
 	Determines the score for each source code entity by summing the score of all
 	edges containing that entity, and normalising the result.
 	*/
-	//TODO: Test and use.
 	public static Dictionary<SourceCodeEntity, double>
 		entity_score_from_edge_score(Dictionary<EntityLink, double> graph)
 	{
@@ -84,7 +83,6 @@ public class SimpleGraph
 		return result;
 	}
 
-	//TODO: Test and use.
 	public static void sce_filter_highpass(
 		Dictionary<SourceCodeEntity, double> entity_scores, double cutoff)
 	{
@@ -123,6 +121,19 @@ public class SimpleGraph
 		}
 		str.WriteLine ("}");
 	}
+
+	/*
+	Writes out the names of source code entities and their scores. To be used when
+	determining source code entities important to the current task.
+	*/
+	public static void dump_links(System.IO.TextWriter str,
+		Dictionary<SourceCodeEntity, double> entity_scores)
+	{
+		foreach (SourceCodeEntity key in entity_scores.Keys)
+			str.WriteLine("{ \"entity_name\": \"" + key.Name + "\", " +
+			              "  \"score:\": " + entity_scores[key] + " }");
+	}
+
 	public static int Main (string[] args)
 	{
 		List<SourceCodeEntityType> EXCLUDED_TYPES =
@@ -143,8 +154,8 @@ public class SimpleGraph
 		// to the src2srcml reader.
 		// Split files from the same session should be OK, though.
 		if (args.Length < 3) {
-			Console.WriteLine ("USAGE: SimpleGraph.exe out-file " +
-			"source-directory gaze-result(s)");
+			Console.WriteLine ("USAGE: SimpleGraph.exe {edge-digraph|importance} " +
+			"out-file source-directory gaze-result(s)");
 			Console.WriteLine ("\tIf <out-file> is - print to stdout.");
 			Console.WriteLine ("\t<source-directory> is recursively " +
 			                   "searched for .java source files.");
@@ -154,13 +165,14 @@ public class SimpleGraph
 		}
 		Config config = new Config ();
 		SourceCodeEntitiesFileCollection collection = SrcMLCodeReader.run (
-			                                              config.src2srcml_path, args [1]);
+			                                              config.src2srcml_path, args [2]);
 		List<string> gaze_files = new List<string> ();
-		for (int i = 0; i < args.Length - 2; i++) {
-			gaze_files.Add (args [i + 2]);
+		for (int i = 0; i < args.Length - 3; i++) {
+			gaze_files.Add (args [i + 3]);
 		}
 		GazeResults gaze_results = GazeReader.run (gaze_files) [0];
-		Dictionary<EntityLink,double> gaze_links = new Dictionary<EntityLink,double> ();
+		Dictionary<EntityLink,double> src2src_links =
+			new Dictionary<EntityLink,double> ();
 		SourceCodeEntity previous = null;
 		SourceCodeEntity current = null;
 		foreach (GazeData gaze_data in gaze_results.gazes) {
@@ -195,24 +207,44 @@ public class SimpleGraph
 				EntityLink link = new EntityLink ();
 				link.left = previous;
 				link.right = current;
-				if (gaze_links.ContainsKey (link)) {
-					gaze_links [link] += Math.Pow (gaze_data.timestamp, 1.0);
+				if (src2src_links.ContainsKey (link)) {
+					src2src_links [link] += Math.Pow (gaze_data.timestamp, 1.0);
 				} else {
-					gaze_links [link] = Math.Pow (gaze_data.timestamp, 2.0);
+					src2src_links [link] = Math.Pow (gaze_data.timestamp, 2.0);
 				}
 			}
 			previous = current;
 		}
-		normalize_graph (gaze_links);
-		edge_filter_highpass (gaze_links, 0.9);
+		normalize_graph (src2src_links);
+		edge_filter_highpass (src2src_links, 0.9);
 		// now write the graph to a DOT file (or stdout)
 		// to be rendered using GraphViz
-		if (args [0] == "-") {
-			dump_DOT (System.Console.Out, gaze_links);
+		if (args [1] == "-") {
+			if (args[0] == "edge-digraph")
+				dump_DOT (System.Console.Out, src2src_links);
+			else if (args[0] == "importance")
+			{
+				Dictionary<SourceCodeEntity, double> entity_score =
+					entity_score_from_edge_score(src2src_links);
+				sce_filter_highpass(entity_score, 0.9);
+				dump_links(System.Console.Out, entity_score);
+			}
+			else
+				Console.WriteLine("Incorrect first parameter");
 		} else {
 			using (System.IO.StreamWriter file =
-		       new System.IO.StreamWriter(args[0])) {
-				dump_DOT (file, gaze_links);
+		       new System.IO.StreamWriter(args[1])) {
+				if (args[0] == "edge-digraph")
+					dump_DOT (file, src2src_links);
+				else if (args[0] == "importance")
+				{
+					Dictionary<SourceCodeEntity, double> entity_score =
+						entity_score_from_edge_score(src2src_links);
+					sce_filter_highpass(entity_score, 0.9);
+					dump_links(file, entity_score);
+				}
+				else
+					Console.WriteLine("Incorrect first parameter");
 			}
 		}
 		return 0;
