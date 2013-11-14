@@ -46,6 +46,44 @@ public class SimpleGraph
 			}
 		}
 	}
+
+	/*
+	Determines the score for each source code entity by summing the score of all
+	edges containing that entity, and normalising the result.
+	*/
+	//TODO: Test and use.
+	public static Dictionary<SourceCodeEntity, double>
+		entity_score_from_edge_score(Dictionary<EntityLink, double> graph)
+	{
+		var result = new Dictionary<SourceCodeEntity, double>();
+
+		//Go through each link, summing the score of that link for each source code
+		//entity.
+		foreach (EntityLink key in graph.Keys)
+		{
+			double value = graph[key];
+
+			//Left entity.
+			if (result.ContainsKey(key.left))
+				result[key.left] += value;
+			else
+				result.Add(key.left, value);
+
+			//Right entity.
+			if (result.ContainsKey(key.left))
+				result[key.left] += value;
+			else
+				result.Add(key.left, value);
+		}
+
+		//Normalise result.
+		double max_in_result = result.Max(item => item.Value);
+		foreach (SourceCodeEntity key in result.Keys)
+			result[key] /= max_in_result;
+
+		return result;
+	}
+
 	public static void dump_DOT(System.IO.TextWriter str,
 	                            Dictionary<EntityLink,double> graph) {
 		// This function has some ugliness, but IO/format
