@@ -20,6 +20,71 @@ public class SimpleGraph
 //       different types.
 //     - Improve/tune postprocessing.
 //     - Add functional-style utilities (I love lisps).
+
+	// Including classes tends to blow everyone else
+	// away since classes contain everything but get
+	// parsed in the same way; including comments and,
+	// to a lesser extent, attributes makes the
+	// graph noisy.
+	private static SourceCodeEntityType[] EXCLUDED_TYPES = {
+			SourceCodeEntityType.COMMENT,
+			SourceCodeEntityType.CLASS,
+			//SourceCodeEntityType.ATTRIBUTE,
+			//SourceCodeEntityType.METHOD,
+		};
+
+	public static Dictionary<EntityLink, double> gen_graph(
+		GazeResults gaze_results, SourceCodeEntitiesFileCollection collection)
+	{
+		Dictionary<EntityLink,double> src2src_links =
+			new Dictionary<EntityLink,double> ();
+		SourceCodeEntity previous = null;
+		SourceCodeEntity current = null;
+		foreach (GazeData gaze_data in gaze_results.gazes) {
+			// find out which SourceCodeEntity the subject
+			// was looking at for this GazeData
+			foreach (SourceCodeEntitiesFile file in collection) {
+				if (gaze_data.filename != file.FileName) {
+					continue;
+				}
+				foreach (SourceCodeEntity entity in file) {
+					// if this GazeData looks at an ignored type, skip
+					if (((IList<SourceCodeEntityType>) EXCLUDED_TYPES).Contains(
+							entity.Type)) {
+						continue;
+					}
+					// Sorry about the ugliness, but I hate code
+					// duplication more than this; it should be
+					// write-only, anyway.
+					if (((gaze_data.line > entity.LineStart) &&
+					    (gaze_data.line < entity.LineEnd)) ||
+					    ((gaze_data.line == entity.LineStart) &&
+					    (gaze_data.col >= entity.ColumnStart)) ||
+					    ((gaze_data.line == entity.LineEnd) &&
+					    (gaze_data.col <= entity.ColumnEnd))) {
+						current = entity;
+						break;
+					}
+				}
+			}
+			// if there was a change of entity, make a note of it
+			if ((current != previous) &&
+			    (previous != null)) {
+				EntityLink link = new EntityLink ();
+				link.left = previous;
+				link.right = current;
+				if (src2src_links.ContainsKey (link)) {
+					src2src_links [link] += Math.Pow (gaze_data.timestamp, 1.0);
+				} else {
+					src2src_links [link] = Math.Pow (gaze_data.timestamp, 2.0);
+				}
+			}
+			previous = current;
+		}
+
+		return src2src_links;
+	}
+
 	public static void normalize_graph(Dictionary<EntityLink,double> graph)
 	{
 		// Scales the edge weights so that the lightest is about 0.0 and the
@@ -137,17 +202,6 @@ public class SimpleGraph
 
 	public static int Main (string[] args)
 	{
-		List<SourceCodeEntityType> EXCLUDED_TYPES =
-			new List<SourceCodeEntityType> ();
-		// Including classes tends to blow everyone else
-		// away since classes contain everything but get
-		// parsed in the same way; including comments and,
-		// to a lesser extent, attributes makes the
-		// graph noisy.
-  		EXCLUDED_TYPES.Add (SourceCodeEntityType.COMMENT);
-		EXCLUDED_TYPES.Add (SourceCodeEntityType.CLASS);
-//		EXCLUDED_TYPES.Add (SourceCodeEntityType.ATTRIBUTE);
-//		EXCLUDED_TYPES.Add (SourceCodeEntityType.METHOD);
 		// I don't recommend making a composite of several sessions.
 		// The differing timestamps would throw off the weights such
 		// that earlier sessions count less. If composites are a
@@ -171,51 +225,9 @@ public class SimpleGraph
 		for (int i = 0; i < args.Length - 3; i++) {
 			gaze_files.Add (args [i + 3]);
 		}
-		GazeResults gaze_results = GazeReader.run (gaze_files) [0];
-		Dictionary<EntityLink,double> src2src_links =
-			new Dictionary<EntityLink,double> ();
-		SourceCodeEntity previous = null;
-		SourceCodeEntity current = null;
-		foreach (GazeData gaze_data in gaze_results.gazes) {
-			// find out which SourceCodeEntity the subject
-			// was looking at for this GazeData
-			foreach (SourceCodeEntitiesFile file in collection) {
-				if (gaze_data.filename != file.FileName) {
-					continue;
-				}
-				foreach (SourceCodeEntity entity in file) {
-					// if this GazeData looks at an ignored type, skip
-					if (EXCLUDED_TYPES.Contains (entity.Type)) {
-						continue;
-					}
-					// Sorry about the ugliness, but I hate code
-					// duplication more than this; it should be
-					// write-only, anyway.
-					if (((gaze_data.line > entity.LineStart) &&
-					    (gaze_data.line < entity.LineEnd)) ||
-					    ((gaze_data.line == entity.LineStart) &&
-					    (gaze_data.col >= entity.ColumnStart)) ||
-					    ((gaze_data.line == entity.LineEnd) &&
-					    (gaze_data.col <= entity.ColumnEnd))) {
-						current = entity;
-						break;
-					}
-				}
-			}
-			// if there was a change of entity, make a note of it
-			if ((current != previous) &&
-			    (previous != null)) {
-				EntityLink link = new EntityLink ();
-				link.left = previous;
-				link.right = current;
-				if (src2src_links.ContainsKey (link)) {
-					src2src_links [link] += Math.Pow (gaze_data.timestamp, 1.0);
-				} else {
-					src2src_links [link] = Math.Pow (gaze_data.timestamp, 2.0);
-				}
-			}
-			previous = current;
-		}
+		List<GazeResults> gaze_results = GazeReader.run(gaze_files);
+		Dictionary<EntityLink, double> src2src_links = gen_graph(gaze_results[0],
+			collection);
 		normalize_graph (src2src_links);
 		edge_filter_highpass (src2src_links, 0.9);
 		// now write the graph to a DOT file (or stdout)
