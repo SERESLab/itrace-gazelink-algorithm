@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using NIER2014.Utils;
 
@@ -156,6 +157,37 @@ public class SimpleGraph
 				entity_scores.Remove(key);
 	}
 
+	/*
+	Use entity scores from multiple gaze files and composite the results into one
+	set of entity scores. Do this by summing all occurrences of the same entity
+	and then normalising the result.
+	*/
+	public static Dictionary<SourceCodeEntity, double> composite_entity_scores(
+		List<Dictionary<SourceCodeEntity, double>> entity_scores)
+	{
+		var result = new Dictionary<SourceCodeEntity, double>();
+
+		foreach (var entity_score in entity_scores)
+		{
+			foreach (var key in new List<SourceCodeEntity>(entity_score.Keys))
+			{
+				double value = entity_score[key];
+
+				if (result.ContainsKey(key))
+					result[key] += value;
+				else
+					result.Add(key, value);
+			}
+		}
+
+		//Normalise result.
+		double max_in_result = result.Max(item => item.Value);
+		foreach (var key in new List<SourceCodeEntity>(result.Keys))
+			result[key] /= max_in_result;
+
+		return result;
+	}
+
 	public static void dump_DOT(System.IO.TextWriter str,
 	                            Dictionary<EntityLink,double> graph) {
 		// This function has some ugliness, but IO/format
@@ -225,41 +257,37 @@ public class SimpleGraph
 		for (int i = 0; i < args.Length - 3; i++) {
 			gaze_files.Add (args [i + 3]);
 		}
+
 		List<GazeResults> gaze_results = GazeReader.run(gaze_files);
-		Dictionary<EntityLink, double> src2src_links = gen_graph(gaze_results[0],
-			collection);
-		normalize_graph (src2src_links);
-		edge_filter_highpass (src2src_links, 0.9);
-		// now write the graph to a DOT file (or stdout)
-		// to be rendered using GraphViz
-		if (args [1] == "-") {
-			if (args[0] == "edge-digraph")
-				dump_DOT (System.Console.Out, src2src_links);
-			else if (args[0] == "importance")
+		var src2src_links = new List<Dictionary<EntityLink, double>>();
+		var entity_scores = new List<Dictionary<SourceCodeEntity, double>>();
+		foreach (var gaze_result in gaze_results)
+		{
+			var cur_src2src_links = gen_graph(gaze_result, collection);
+			normalize_graph(cur_src2src_links);
+			edge_filter_highpass(cur_src2src_links, 0.95);
+			src2src_links.Add(cur_src2src_links);
+
+			if (args[0] == "importance")
 			{
-				Dictionary<SourceCodeEntity, double> entity_score =
-					entity_score_from_edge_score(src2src_links);
-				sce_filter_highpass(entity_score, 0.9);
-				dump_links(System.Console.Out, entity_score);
-			}
-			else
-				Console.WriteLine("Incorrect first parameter");
-		} else {
-			using (System.IO.StreamWriter file =
-		       new System.IO.StreamWriter(args[1])) {
-				if (args[0] == "edge-digraph")
-					dump_DOT (file, src2src_links);
-				else if (args[0] == "importance")
-				{
-					Dictionary<SourceCodeEntity, double> entity_score =
-						entity_score_from_edge_score(src2src_links);
-					sce_filter_highpass(entity_score, 0.9);
-					dump_links(file, entity_score);
-				}
-				else
-					Console.WriteLine("Incorrect first parameter");
+				var entity_score = entity_score_from_edge_score(cur_src2src_links);
+				sce_filter_highpass(entity_score, 0.95);
+				entity_scores.Add(entity_score);
 			}
 		}
+		// Write DOT file for GraphViz or write importance set. Use standard out if
+		// specified.
+		TextWriter output_writer = System.Console.Out;
+		if (args[1] != "-")
+			output_writer = new StreamWriter(args[1]);
+
+		if (args[0] == "edge-digraph")
+			dump_DOT(output_writer, src2src_links[0]);
+		else if (args[0] == "importance")
+			dump_links(output_writer, composite_entity_scores(entity_scores));
+		else
+			Console.WriteLine("Incorrect first parameter");
+
 		return 0;
 	}
 }
