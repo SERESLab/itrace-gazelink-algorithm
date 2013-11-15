@@ -69,15 +69,15 @@ public class SimpleGraph
 				result.Add(key.left, value);
 
 			//Right entity.
-			if (result.ContainsKey(key.left))
-				result[key.left] += value;
+			if (result.ContainsKey(key.right))
+				result[key.right] += value;
 			else
-				result.Add(key.left, value);
+				result.Add(key.right, value);
 		}
 
 		//Normalise result.
 		double max_in_result = result.Max(item => item.Value);
-		foreach (SourceCodeEntity key in result.Keys)
+		foreach (var key in new List<SourceCodeEntity>(result.Keys))
 			result[key] /= max_in_result;
 
 		return result;
@@ -86,7 +86,7 @@ public class SimpleGraph
 	public static void sce_filter_highpass(
 		Dictionary<SourceCodeEntity, double> entity_scores, double cutoff)
 	{
-		foreach (var key in entity_scores.Keys)
+		foreach (var key in new List<SourceCodeEntity>(entity_scores.Keys))
 			if (entity_scores[key] < cutoff)
 				entity_scores.Remove(key);
 	}
@@ -131,7 +131,8 @@ public class SimpleGraph
 	{
 		foreach (SourceCodeEntity key in entity_scores.Keys)
 			str.WriteLine("{ \"entity_name\": \"" + key.Name + "\", " +
-			              "  \"score:\": " + entity_scores[key] + " }");
+			              "\"file_name\": \"" + key.parent_file.FileName + "\", " +
+			              "\"score:\": " + entity_scores[key] + " }");
 	}
 
 	public static int Main (string[] args)
