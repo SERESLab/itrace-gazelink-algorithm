@@ -214,7 +214,7 @@ public class SimpleGraph
 			}
 			str.WriteLine ("\"" + lname.Replace ("\"", "\'\'") + "\" -> \"" +
 			                rname.Replace ("\"", "\'\'") + "\" [weight=" +
-			                g.Value.ToString ("F16") + "];");
+			               g.Value.ToString ("F16") + " penwidth=" + g.Value.ToString ("F16") + "];");
 		}
 		str.WriteLine ("}");
 	}
