@@ -27,6 +27,18 @@ namespace NIER2014.Utils
     public int ColumnEnd { get; set; }
     public SourceCodeEntityType Type { get; set; }
     public string Name { get; set; }
+    public List<string> FullyQualifiedName = new List<string>();
+    public string DotFullyQualifiedName
+    {
+      get
+      {
+        string dot_fully_qualified_name = "";
+        foreach (var cur_name in FullyQualifiedName)
+          dot_fully_qualified_name += cur_name + '.';
+        dot_fully_qualified_name += Name;
+        return dot_fully_qualified_name;
+      }
+    }
     public static bool operator ==(SourceCodeEntity a,
 		                               SourceCodeEntity b)
 		{
@@ -178,21 +190,32 @@ namespace NIER2014.Utils
       XPathNavigator navigator = doc.CreateNavigator();
 
       collectEntitiesByType(scef, navigator, "class",
-        SourceCodeEntityType.CLASS, "*[local-name() = 'name']");
+        SourceCodeEntityType.CLASS, "*[local-name() = 'name']",
+        new Dictionary<string, string>());
       collectEntitiesByType(scef, navigator, "decl_stmt",
         SourceCodeEntityType.ATTRIBUTE,
-        "*[local-name() = 'decl']/*[local-name() = 'name']");
+        "*[local-name() = 'decl']/*[local-name() = 'name']",
+        new Dictionary<string, string> {
+          { "class", "*[local-name() = 'name']" },
+          { "function", "*[local-name() = 'name']" },
+        });
       collectEntitiesByType(scef, navigator, "function",
-        SourceCodeEntityType.METHOD, "*[local-name() = 'name']");
+        SourceCodeEntityType.METHOD, "*[local-name() = 'name']",
+        new Dictionary<string, string> {
+          { "class", "*[local-name() = 'name']" }
+        });
       collectEntitiesByType(scef, navigator, "comment",
-        SourceCodeEntityType.COMMENT, ".");
+        SourceCodeEntityType.COMMENT, ".", new Dictionary<string, string> {
+          { "class", "*[local-name() = 'name']" },
+          { "function", "*[local-name() = 'name']" },
+        });
 
       return scef;
     }
 
     private static void collectEntitiesByType(SourceCodeEntitiesFile scef,
-      XPathNavigator navigator, string srcml_name,
-      SourceCodeEntityType type, string name_xpath)
+      XPathNavigator navigator, string srcml_name, SourceCodeEntityType type,
+      string name_xpath, Dictionary<string, string> parent_names)
     {
       XPathNodeIterator iterator = (XPathNodeIterator) navigator.Evaluate(
         "//*[local-name() = '" + srcml_name + "']");
@@ -207,6 +230,18 @@ namespace NIER2014.Utils
         if (search_name.MoveNext())
           name = search_name.Current.Value;
 
+        Stack<string> fully_qualified_name = new Stack<string>();
+        while (element.MoveToParent())
+        {
+          if (parent_names.ContainsKey(element.Name))
+          {
+            search_name =
+              (XPathNodeIterator) element.Evaluate(parent_names[element.Name]);
+            if (search_name.MoveNext())
+              fully_qualified_name.Push(search_name.Current.Value);
+          }
+        }
+
         SourceCodeEntity sce = new SourceCodeEntity();
         sce.LineStart = position.line_start;
         sce.LineEnd = position.line_end;
@@ -214,6 +249,8 @@ namespace NIER2014.Utils
         sce.ColumnEnd = position.col_end;
         sce.Type = type;
         sce.Name = name;
+        while (fully_qualified_name.Count > 0)
+          sce.FullyQualifiedName.Add(fully_qualified_name.Pop());
 
         sce.parent_file = scef;
         scef.Add(sce);

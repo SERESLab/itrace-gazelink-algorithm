@@ -227,7 +227,8 @@ public class SimpleGraph
 		Dictionary<SourceCodeEntity, double> entity_scores)
 	{
 		foreach (SourceCodeEntity key in entity_scores.Keys)
-			str.WriteLine("{ \"entity_name\": \"" + key.Name + "\", " +
+			str.WriteLine("{ \"entity_name\": \"" + key.DotFullyQualifiedName +
+			                                 "\", " +
 			              "\"file_name\": \"" + key.parent_file.FileName + "\", " +
 			              "\"score:\": " + entity_scores[key] + " }");
 	}
