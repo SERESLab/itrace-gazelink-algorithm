@@ -142,11 +142,17 @@ public class SimpleGraph
 		}
 
 		//Normalise result.
-		double max_in_result = result.Max(item => item.Value);
-		foreach (var key in new List<SourceCodeEntity>(result.Keys))
-			result[key] /= max_in_result;
+		sce_normalise(result);
 
 		return result;
+	}
+
+	public static void sce_normalise(
+		Dictionary<SourceCodeEntity, double> entity_scores)
+	{
+		double max = entity_scores.Max(item => item.Value);
+		foreach (var key in new List<SourceCodeEntity>(entity_scores.Keys))
+			entity_scores[key] /= max;
 	}
 
 	public static void sce_filter_highpass(
@@ -181,9 +187,7 @@ public class SimpleGraph
 		}
 
 		//Normalise result.
-		double max_in_result = result.Max(item => item.Value);
-		foreach (var key in new List<SourceCodeEntity>(result.Keys))
-			result[key] /= max_in_result;
+		sce_normalise(result);
 
 		return result;
 	}
@@ -285,7 +289,11 @@ public class SimpleGraph
 		if (args[0] == "edge-digraph")
 			dump_DOT(output_writer, src2src_links[0]);
 		else if (args[0] == "importance")
-			dump_links(output_writer, composite_entity_scores(entity_scores));
+		{
+			var composite = composite_entity_scores(entity_scores);
+			sce_filter_highpass(composite, 0.5);
+			dump_links(output_writer, composite);
+		}
 		else
 			Console.WriteLine("Incorrect first parameter");
 
