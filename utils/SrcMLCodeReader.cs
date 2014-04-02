@@ -12,11 +12,10 @@ namespace NIER2014.Utils
   public enum SourceCodeEntityType
   {
     CLASS = 1,
-    ATTRIBUTE = 2,
-    METHOD = 3,
+	METHOD = 2,
+    ATTRIBUTE = 3,
     COMMENT = 4
   }
-
   public class SourceCodeEntity
   {
     public SourceCodeEntitiesFile parent_file { get; set; }
@@ -57,7 +56,7 @@ namespace NIER2014.Utils
 
 			// Return true if the fields match.
 			return (a.Type == b.Type) &&
-				(a.Name == b.Name);
+				(a.DotFullyQualifiedName == b.DotFullyQualifiedName);
 		}
 		public static bool operator !=(SourceCodeEntity a,
 		                               SourceCodeEntity b)
@@ -73,7 +72,7 @@ namespace NIER2014.Utils
 			else 
 				// Compare fieldwise.
 				return (Type == e.Type) &&
-					(Name == e.Name);
+					(DotFullyQualifiedName == e.DotFullyQualifiedName);
 		}
 		public override int GetHashCode()
 		{
@@ -82,14 +81,42 @@ namespace NIER2014.Utils
 			// seperators will prevent an edge case in which two
 			// sets of symbols have the same concatenation, e.g.
 			// "hello" + "world" and "hell" + "oworld".
-			return (Name + "\x00" + (char)Type).GetHashCode();
+			return (DotFullyQualifiedName + "\x00" + (char)Type).GetHashCode();
 		}
   }
 
 	public class EntityLink
 	{
-		public SourceCodeEntity left { get; set; }
-		public SourceCodeEntity right { get; set; }
+		public HashSet <SourceCodeEntity> left { get; set; }
+		public HashSet <SourceCodeEntity> right { get; set; }
+		public SourceCodeEntity leftmost { get {
+				SourceCodeEntity best = null;
+				foreach (SourceCodeEntity s in left) {
+					if (best == null) {
+						best = s;
+						continue;
+					}
+					if (s.Type > best.Type) {
+						best = s;
+					}
+				}
+				return best;
+			}
+		}
+		public SourceCodeEntity rightmost { get {
+				SourceCodeEntity best = null;
+				foreach (SourceCodeEntity s in right) {
+					if (best == null) {
+						best = s;
+						continue;
+					}
+					if (s.Type > best.Type) {
+						best = s;
+					}
+				}
+				return best;
+			}
+		}
 		public static bool operator ==(EntityLink a,
 		                               EntityLink b)
 		{
@@ -106,7 +133,7 @@ namespace NIER2014.Utils
 			}
 
 			// Return true if the fields match:
-			return (a.left == b.left) && (a.right == b.right);
+			return a.left.SetEquals(b.left) && a.right.SetEquals(b.right);
 		}
 		public static bool operator !=(EntityLink a,
 		                               EntityLink b)
@@ -119,12 +146,12 @@ namespace NIER2014.Utils
 			if (e == null)
 				return false;
 			else 
-				return (left == e.left) && (right == e.right);
+				return left.SetEquals(e.left) && right.SetEquals(e.right);
 		}
 		public override int GetHashCode()
 		{
-			return (left.Name + "\x00" + (char)left.Type + "\x00\x00" +
-			        right.Name + "\x00" + (char)right.Type).GetHashCode();
+			return (leftmost.DotFullyQualifiedName + "\x00" + (char)leftmost.Type + "\x00\x00" +
+			        rightmost.DotFullyQualifiedName + "\x00" + (char)rightmost.Type).GetHashCode();
 		}
 	}
 
