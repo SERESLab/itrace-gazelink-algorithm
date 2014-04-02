@@ -27,20 +27,20 @@ public class SimpleGraph
 	// parsed in the same way; including comments and,
 	// to a lesser extent, attributes makes the
 	// graph noisy.
-	private static SourceCodeEntityType[] EXCLUDED_TYPES = {
-			SourceCodeEntityType.COMMENT,
-			SourceCodeEntityType.CLASS,
-			//SourceCodeEntityType.ATTRIBUTE,
-			//SourceCodeEntityType.METHOD,
-		};
-
+//	private static SourceCodeEntityType[] EXCLUDED_TYPES = {
+//			SourceCodeEntityType.COMMENT,
+//			SourceCodeEntityType.CLASS,
+//			//SourceCodeEntityType.ATTRIBUTE,
+//			//SourceCodeEntityType.METHOD,
+//		};
+	
 	public static Dictionary<EntityLink, double> gen_graph(
 		GazeResults gaze_results, SourceCodeEntitiesFileCollection collection)
 	{
 		Dictionary<EntityLink,double> src2src_links =
 			new Dictionary<EntityLink,double> ();
-		SourceCodeEntity previous = null;
-		SourceCodeEntity current = null;
+		HashSet <SourceCodeEntity> previous = null;
+		HashSet <SourceCodeEntity> current = new HashSet <SourceCodeEntity>();
 		foreach (GazeData gaze_data in gaze_results.gazes) {
 			// find out which SourceCodeEntity the subject
 			// was looking at for this GazeData
@@ -50,12 +50,12 @@ public class SimpleGraph
 				}
 				foreach (SourceCodeEntity entity in file) {
 					// if this GazeData looks at an ignored type, skip
-					if (((IList<SourceCodeEntityType>) EXCLUDED_TYPES).Contains(
-							entity.Type)) {
-						continue;
-					}
+//					if (((IList<SourceCodeEntityType>) EXCLUDED_TYPES).Contains(
+//							entity.Type)) {
+//						continue;
+//					}
 					// Sorry about the ugliness, but I hate code
-					// duplication more than this; it should be
+					// duplication more than this; i"1.0" encoding=t should be
 					// write-only, anyway.
 					if (((gaze_data.line > entity.LineStart) &&
 					    (gaze_data.line < entity.LineEnd)) ||
@@ -63,17 +63,19 @@ public class SimpleGraph
 					    (gaze_data.col >= entity.ColumnStart)) ||
 					    ((gaze_data.line == entity.LineEnd) &&
 					    (gaze_data.col <= entity.ColumnEnd))) {
-						current = entity;
-						break;
+						current.Add(entity);
+						//break;
 					}
 				}
 			}
 			// if there was a change of entity, make a note of it
 			if ((current != previous) &&
-			    (previous != null)) {
+			    (previous != null) &&
+			    (previous.Count > 0) &&
+			    (current.Count > 0)) {
 				EntityLink link = new EntityLink ();
-				link.left = previous;
-				link.right = current;
+				link.left = new HashSet <SourceCodeEntity> (previous);
+				link.right = new HashSet <SourceCodeEntity> (current);
 				if (src2src_links.ContainsKey (link)) {
 					src2src_links [link] += Math.Pow (gaze_data.timestamp, 1.0);
 				} else {
@@ -81,6 +83,7 @@ public class SimpleGraph
 				}
 			}
 			previous = current;
+			current = new HashSet <SourceCodeEntity> ();
 		}
 
 		return src2src_links;
@@ -129,16 +132,16 @@ public class SimpleGraph
 			double value = graph[key];
 
 			//Left entity.
-			if (result.ContainsKey(key.left))
-				result[key.left] += value;
+			if (result.ContainsKey(key.leftmost))
+				result[key.leftmost] += value;
 			else
-				result.Add(key.left, value);
+				result.Add(key.leftmost, value);
 
 			//Right entity.
-			if (result.ContainsKey(key.right))
-				result[key.right] += value;
+			if (result.ContainsKey(key.rightmost))
+				result[key.rightmost] += value;
 			else
-				result.Add(key.right, value);
+				result.Add(key.rightmost, value);
 		}
 
 		//Normalise result.
@@ -200,21 +203,22 @@ public class SimpleGraph
 		foreach (KeyValuePair<EntityLink,double> g in graph) {
 			string lname;
 			string rname;
-			if (((EntityLink)g.Key).left.Type ==
+			if (((EntityLink)g.Key).leftmost.Type ==
 			    SourceCodeEntityType.COMMENT) {
 				lname = "commentL" +
-					g.Key.left.LineStart.ToString () +
-						"C" + g.Key.left.ColumnStart.ToString ();
+					g.Key.leftmost.LineStart.ToString () +
+						"C" + g.Key.leftmost.ColumnStart.ToString () +
+						" (" + g.Key.leftmost.parent_file.FileName + ")";
 			} else {
-				lname = g.Key.left.Name + " (" + g.Key.left.parent_file.FileName + ")";
+				lname = g.Key.leftmost.Name + " (" + g.Key.leftmost.parent_file.FileName + ")";
 			}
-			if (g.Key.right.Type ==
+			if (g.Key.rightmost.Type ==
 			    SourceCodeEntityType.COMMENT) {
 				rname = "commentL" +
-					g.Key.right.LineStart.ToString () +
-						"C" + g.Key.right.ColumnStart.ToString ();
+					g.Key.rightmost.LineStart.ToString () +
+						"C" + g.Key.rightmost.ColumnStart.ToString ();
 			} else {
-				rname = g.Key.right.Name + " (" + g.Key.right.parent_file.FileName + ")";
+				rname = g.Key.rightmost.Name + " (" + g.Key.rightmost.parent_file.FileName + ")";
 			}
 			str.WriteLine ("\"" + lname.Replace ("\"", "\'\'") + "\" -> \"" +
 			                rname.Replace ("\"", "\'\'") + "\" [weight=" +
@@ -234,6 +238,7 @@ public class SimpleGraph
 			str.WriteLine("{ \"entity_name\": \"" + key.DotFullyQualifiedName +
 			                                 "\", " +
 			              "\"file_name\": \"" + key.parent_file.FileName + "\", " +
+				"\"line_number\": \"" + key.LineStart + "\", " +
 			              "\"score:\": " + entity_scores[key] + " }");
 	}
 
@@ -276,7 +281,7 @@ public class SimpleGraph
 			if (args[0] == "importance")
 			{
 				var entity_score = entity_score_from_edge_score(cur_src2src_links);
-				sce_filter_highpass(entity_score, 0.95);
+				sce_filter_highpass(entity_score, 0.5);
 				entity_scores.Add(entity_score);
 			}
 		}
