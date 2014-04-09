@@ -52,6 +52,8 @@ namespace NIER2014.Utils
       XmlDocument document = new XmlDocument();
       List<GazeData> gazes = new List<GazeData>();
       TrackingEnvironment environment = new TrackingEnvironment();
+	  bool isFirstGaze = true;
+	  long firstTimestamp = 0;
       try
       {
         document.Load(in_filename);
@@ -109,7 +111,13 @@ namespace NIER2014.Utils
             gaze_data.col = Convert.ToInt32(col);
             gaze_data.x = Convert.ToInt32(x);
             gaze_data.y = Convert.ToInt32(y);
-            gaze_data.timestamp = Convert.ToInt64(timestamp);
+			//set start time to zero by subtracting off the first timestamp from each gaze
+			if (isFirstGaze)
+			{
+				firstTimestamp = Convert.ToInt64(timestamp);
+				isFirstGaze = false;
+			}
+            gaze_data.timestamp = Convert.ToInt64(timestamp) - firstTimestamp;
             gaze_data.left_validation = Convert.ToDouble(left_validation);
             gaze_data.right_validation = Convert.ToDouble(right_validation);
             gazes.Add(gaze_data);
