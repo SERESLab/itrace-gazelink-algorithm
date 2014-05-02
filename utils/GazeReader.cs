@@ -14,7 +14,7 @@ namespace NIER2014.Utils
     public int y { get; set; }
     public double left_validation { get; set; }
     public double right_validation { get; set; }
-    public long timestamp { get; set; }
+    public double timestamp { get; set; }
   }
 
   public class TrackingEnvironment
@@ -52,6 +52,9 @@ namespace NIER2014.Utils
       XmlDocument document = new XmlDocument();
       List<GazeData> gazes = new List<GazeData>();
       TrackingEnvironment environment = new TrackingEnvironment();
+	  //bool isFirstGaze = true;
+	  double firstTimestamp = 0;
+	  double lastTimestamp = 0;
       try
       {
         document.Load(in_filename);
@@ -109,12 +112,30 @@ namespace NIER2014.Utils
             gaze_data.col = Convert.ToInt32(col);
             gaze_data.x = Convert.ToInt32(x);
             gaze_data.y = Convert.ToInt32(y);
-            gaze_data.timestamp = Convert.ToInt64(timestamp);
+			//set start time to zero by subtracting off the first timestamp from each gaze
+			/*
+			if (isFirstGaze)
+			{
+				firstTimestamp = Convert.ToDecimal(timestamp);
+				isFirstGaze = false;
+			}
+			*/
+            gaze_data.timestamp = Convert.ToDouble(timestamp) - firstTimestamp;
             gaze_data.left_validation = Convert.ToDouble(left_validation);
             gaze_data.right_validation = Convert.ToDouble(right_validation);
             gazes.Add(gaze_data);
           }
         }
+		//normalize timestamp data
+		firstTimestamp = gazes[0].timestamp;
+		lastTimestamp = gazes[gazes.Count - 1].timestamp;
+		//Console.WriteLine(firstTimestamp);
+		//Console.WriteLine(lastTimestamp);
+		for (int i = 0; i < gazes.Count; i++)
+		{
+			gazes[i].timestamp = ( gazes[i].timestamp - firstTimestamp ) / ( lastTimestamp - firstTimestamp );
+			//Console.WriteLine(gazes[i].timestamp);
+		}
         return new GazeResults(gazes, environment);
       }
       catch (Exception e)

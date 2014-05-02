@@ -77,9 +77,11 @@ public class SimpleGraph
 				link.left = new HashSet <SourceCodeEntity> (previous);
 				link.right = new HashSet <SourceCodeEntity> (current);
 				if (src2src_links.ContainsKey (link)) {
-					src2src_links [link] += Math.Pow (gaze_data.timestamp, 1.0);
+					//src2src_links [link] += Math.Pow (gaze_data.timestamp, 2.0);
+					src2src_links [link] += Math.Pow (100, gaze_data.timestamp);
 				} else {
-					src2src_links [link] = Math.Pow (gaze_data.timestamp, 2.0);
+					//src2src_links [link] = Math.Pow (gaze_data.timestamp, 2.0);
+					src2src_links [link] = Math.Pow (100, gaze_data.timestamp);
 				}
 			}
 			previous = current;
@@ -234,12 +236,28 @@ public class SimpleGraph
 	public static void dump_links(System.IO.TextWriter str,
 		Dictionary<SourceCodeEntity, double> entity_scores)
 	{
+		var outputLine = new Dictionary<double, string>();
+		Random rnd = new Random();
+		//create a dictionary of output lines
+		//dictionary key is set to 1 - entity_scores[key] + (rnd.NextDouble() / 1000000)
+		//in order to allow sorting by score (small random value prevents errors from identical values)
 		foreach (SourceCodeEntity key in entity_scores.Keys)
-			str.WriteLine("{ \"entity_name\": \"" + key.DotFullyQualifiedName +
+		{
+			outputLine.Add(1 - entity_scores[key] + (rnd.NextDouble() / 1000000), 
+							"{ \"entity_name\": \"" + key.DotFullyQualifiedName +
 			                                 "\", " +
-			              "\"file_name\": \"" + key.parent_file.FileName + "\", " +
-				"\"line_number\": \"" + key.LineStart + "\", " +
-			              "\"score:\": " + entity_scores[key] + " }");
+							"\"file_name\": \"" + key.parent_file.FileName + "\", " +
+							"\"line_number\": \"" + key.LineStart + "\", " +
+							"\"score:\": " + entity_scores[key] + " }");	
+		}
+		//create a sorted list of dictionary keys
+		var keyList = outputLine.Keys.ToList();
+		keyList.Sort();
+		//output lines in sorted order
+		foreach (var key in keyList)
+		{
+			str.WriteLine(outputLine[key]);
+		}
 	}
 
 	public static int Main (string[] args)
@@ -252,10 +270,12 @@ public class SimpleGraph
 		// Split files from the same session should be OK, though.
 		if (args.Length < 3) {
 			Console.WriteLine ("USAGE: SimpleGraph.exe {edge-digraph|importance} " +
-			"out-file source-directory gaze-result(s)");
+			"out-file source-directory edge-filter-highpass sce-filter-highpass composite-sce-filter-highpass gaze-result(s)");
 			Console.WriteLine ("\tIf <out-file> is - print to stdout.");
 			Console.WriteLine ("\t<source-directory> is recursively " +
 			                   "searched for .java source files.");
+			Console.WriteLine ("\t<edge-filter-highpass>, <sce-filter-highpass> and <composite-sce-filter-highpass>" +
+			                   "should be numbers between 0 and 1.");
 			Console.WriteLine ("\t<gaze-result(s)> is/are XML eye tracking " +
 			                   "data over the source\n\t  files in <source-directory>.");
 			return 1;
@@ -264,8 +284,8 @@ public class SimpleGraph
 		SourceCodeEntitiesFileCollection collection = SrcMLCodeReader.run (
 			                                              config.src2srcml_path, args [2]);
 		List<string> gaze_files = new List<string> ();
-		for (int i = 0; i < args.Length - 3; i++) {
-			gaze_files.Add (args [i + 3]);
+		for (int i = 0; i < args.Length - 6; i++) {
+			gaze_files.Add (args [i + 6]);
 		}
 
 		List<GazeResults> gaze_results = GazeReader.run(gaze_files);
@@ -275,13 +295,13 @@ public class SimpleGraph
 		{
 			var cur_src2src_links = gen_graph(gaze_result, collection);
 			normalize_graph(cur_src2src_links);
-			edge_filter_highpass(cur_src2src_links, 0.95);
+			edge_filter_highpass(cur_src2src_links, Convert.ToDouble(args[3]));
 			src2src_links.Add(cur_src2src_links);
 
 			if (args[0] == "importance")
 			{
 				var entity_score = entity_score_from_edge_score(cur_src2src_links);
-				sce_filter_highpass(entity_score, 0.5);
+				sce_filter_highpass(entity_score, Convert.ToDouble(args[4]));
 				entity_scores.Add(entity_score);
 			}
 		}
@@ -296,7 +316,7 @@ public class SimpleGraph
 		else if (args[0] == "importance")
 		{
 			var composite = composite_entity_scores(entity_scores);
-			sce_filter_highpass(composite, 0.5);
+			sce_filter_highpass(composite, Convert.ToDouble(args[5]));
 			dump_links(output_writer, composite);
 		}
 		else
